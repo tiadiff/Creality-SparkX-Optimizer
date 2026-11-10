@@ -24,91 +24,98 @@ public partial class MainWindow : Window
 
     private void RefreshStatus()
     {
-        _currentStatus = _optimizerService.DetectStatus();
+        try
+        {
+            _currentStatus = _optimizerService.DetectStatus();
 
-        // App Status
-        if (_currentStatus.CrealityRunning)
-        {
-            TxtAppStatus.Text = $"RUNNING (PID {_currentStatus.RunningPid})";
-            TxtAppStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0)); // Yellow
-        }
-        else if (_currentStatus.CrealityInstalled)
-        {
-            TxtAppStatus.Text = "READY (CLOSED)";
-            TxtAppStatus.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132)); // Green
-        }
-        else
-        {
-            TxtAppStatus.Text = "NOT FOUND";
-            TxtAppStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 77, 77)); // Red
-        }
-        TxtAppPath.Text = string.IsNullOrEmpty(_currentStatus.CrealityExePath) ? "Not detected" : _currentStatus.CrealityExePath;
+            // App Status
+            if (_currentStatus.CrealityRunning)
+            {
+                TxtAppStatus.Text = $"RUNNING (PID {_currentStatus.RunningPid})";
+                TxtAppStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0)); // Yellow
+            }
+            else if (_currentStatus.CrealityInstalled)
+            {
+                TxtAppStatus.Text = "READY (CLOSED)";
+                TxtAppStatus.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132)); // Green
+            }
+            else
+            {
+                TxtAppStatus.Text = "NOT FOUND";
+                TxtAppStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 77, 77)); // Red
+            }
+            TxtAppPath.Text = string.IsNullOrEmpty(_currentStatus.CrealityExePath) ? "Not detected" : _currentStatus.CrealityExePath;
 
-        // Startup Status
-        if (_currentStatus.HomePageEnabled)
-        {
-            TxtStartupStatus.Text = "SLOW (HOME PAGE)";
-            TxtStartupStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
-            TxtStartupDetail.Text = "Webview2 feed loads on boot";
-        }
-        else
-        {
-            TxtStartupStatus.Text = "FAST (DIRECT 3D)";
-            TxtStartupStatus.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
-            TxtStartupDetail.Text = "Direct 3D Plate (Instant boot)";
-        }
+            // Startup Status
+            if (_currentStatus.HomePageEnabled)
+            {
+                TxtStartupStatus.Text = "SLOW (HOME PAGE)";
+                TxtStartupStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
+                TxtStartupDetail.Text = "Webview2 feed loads on boot";
+            }
+            else
+            {
+                TxtStartupStatus.Text = "FAST (DIRECT 3D)";
+                TxtStartupStatus.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
+                TxtStartupDetail.Text = "Direct 3D Plate (Instant boot)";
+            }
 
-        // Stability / Kinematics Status
-        if (_currentStatus.KinematicsBugDetected)
-        {
-            TxtStabilityStatus.Text = "VULNERABLE";
-            TxtStabilityStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 77, 77));
-            TxtStabilityDetail.Text = $"{_currentStatus.VulnerableProfilesCount} profile(s) have arc/step crash bug";
-        }
-        else
-        {
-            TxtStabilityStatus.Text = "PROTECTED";
-            TxtStabilityStatus.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
-            TxtStabilityDetail.Text = "Kinematics solver bug eliminated";
-        }
+            // Stability / Kinematics Status
+            if (_currentStatus.KinematicsBugDetected)
+            {
+                TxtStabilityStatus.Text = "VULNERABLE";
+                TxtStabilityStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 77, 77));
+                TxtStabilityDetail.Text = $"{_currentStatus.VulnerableProfilesCount} profile(s) have arc/step crash bug";
+            }
+            else
+            {
+                TxtStabilityStatus.Text = "PROTECTED";
+                TxtStabilityStatus.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
+                TxtStabilityDetail.Text = "Kinematics solver bug eliminated";
+            }
 
-        // Priority Status
-        if (_currentStatus.PermanentHighPriorityActive)
-        {
-            TxtPriorityStatus.Text = "PERMANENT (HIGH)";
-            TxtPriorityStatus.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
-            TxtPriorityBadge.Text = "[ACTIVE IN KERNEL]";
-            TxtPriorityBadge.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
-            BtnSetPermanentPriority.Content = "Disable Permanent High Priority";
-        }
-        else
-        {
-            TxtPriorityStatus.Text = "RESET BY WINDOWS";
-            TxtPriorityStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
-            TxtPriorityBadge.Text = "[TASK MANAGER RESETS ON RESTART]";
-            TxtPriorityBadge.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
-            BtnSetPermanentPriority.Content = "⚡ Permanent High Priority (Registry IFEO)";
-        }
+            // Priority Status
+            if (_currentStatus.PermanentHighPriorityActive)
+            {
+                TxtPriorityStatus.Text = "PERMANENT (HIGH)";
+                TxtPriorityStatus.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
+                TxtPriorityBadge.Text = "[ACTIVE IN KERNEL]";
+                TxtPriorityBadge.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
+                BtnSetPermanentPriority.Content = "Disable Permanent High Priority";
+            }
+            else
+            {
+                TxtPriorityStatus.Text = "RESET BY WINDOWS";
+                TxtPriorityStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
+                TxtPriorityBadge.Text = "[TASK MANAGER RESETS ON RESTART]";
+                TxtPriorityBadge.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
+                BtnSetPermanentPriority.Content = "⚡ Permanent High Priority (Registry IFEO)";
+            }
 
-        // Junk Size
-        TxtJunkSize.Text = $"{OptimizerService.FormatBytes(_currentStatus.TotalJunkBytes)} junk";
-        if (_currentStatus.TotalJunkBytes > 1024 * 1024 * 100) // > 100 MB
-        {
-            TxtJunkSize.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
-        }
-        else
-        {
-            TxtJunkSize.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
-        }
+            // Junk Size
+            TxtJunkSize.Text = $"{OptimizerService.FormatBytes(_currentStatus.TotalJunkBytes)} junk";
+            if (_currentStatus.TotalJunkBytes > 1024 * 1024 * 100) // > 100 MB
+            {
+                TxtJunkSize.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
+            }
+            else
+            {
+                TxtJunkSize.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
+            }
 
-        // Backup Info
-        if (_currentStatus.LatestBackupTime.HasValue)
-        {
-            TxtBackupInfo.Text = $"Backup: {_currentStatus.LatestBackupTime.Value:yyyy-MM-dd HH:mm}";
+            // Backup Info
+            if (_currentStatus.LatestBackupTime.HasValue)
+            {
+                TxtBackupInfo.Text = $"Backup: {_currentStatus.LatestBackupTime.Value:yyyy-MM-dd HH:mm}";
+            }
+            else
+            {
+                TxtBackupInfo.Text = "Backup: None yet";
+            }
         }
-        else
+        catch (Exception ex)
         {
-            TxtBackupInfo.Text = "Backup: None yet";
+            Log($"[WARNING] Status check error: {ex.Message}");
         }
     }
 
@@ -118,40 +125,57 @@ public partial class MainWindow : Window
         TxtLogStatus.Text = "• Optimizing...";
         TxtLogStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
 
+        // Read UI state on the UI thread BEFORE entering Task.Run
+        bool purgeJunk = ChkPurgeJunk.IsChecked == true;
+        bool fixKinematics = ChkFixKinematics.IsChecked == true;
+        bool skipHomePage = ChkSkipHomePage.IsChecked == true;
+        bool skipSplashTips = ChkSkipSplashTips.IsChecked == true;
+        bool disableCloudSync = ChkDisableCloudSync.IsChecked == true;
+        bool disableAutoCalc = ChkDisableAutoCalc.IsChecked == true;
+        bool memOpt = ChkMemOpt.IsChecked == true;
+        bool highGpu = ChkHighGpu.IsChecked == true;
+
         await Task.Run(() =>
         {
-            Log("==================================================");
-            Log("[START] Starting 1-Click Full Optimization...");
-
-            _optimizerService.CloseOrKillCrealityPrint(Log);
-            _optimizerService.CreateBackup(Log);
-
-            if (ChkPurgeJunk.IsChecked == true)
+            try
             {
-                _optimizerService.CleanJunk(Log);
-            }
+                Log("==================================================");
+                Log("[START] Starting 1-Click Full Optimization...");
 
-            if (ChkFixKinematics.IsChecked == true)
+                _optimizerService.CloseOrKillCrealityPrint(Log);
+                _optimizerService.CreateBackup(Log);
+
+                if (purgeJunk)
+                {
+                    _optimizerService.CleanJunk(Log);
+                }
+
+                if (fixKinematics)
+                {
+                    _optimizerService.FixKinematicsAndCrashes(Log);
+                }
+
+                _optimizerService.OptimizeConfig(
+                    skipHomePage: skipHomePage,
+                    skipSplashAndTips: skipSplashTips,
+                    disableCloudSync: disableCloudSync,
+                    disableAutoCalculate: disableAutoCalc,
+                    enableMemOpt: memOpt,
+                    log: Log
+                );
+
+                if (highGpu)
+                {
+                    _optimizerService.ConfigureHighPerformanceGpu(Log);
+                }
+
+                Log("[COMPLETE] All optimizations applied successfully!");
+                Log("==================================================");
+            }
+            catch (Exception ex)
             {
-                _optimizerService.FixKinematicsAndCrashes(Log);
+                Log($"[ERROR] Optimization failed: {ex.Message}");
             }
-
-            _optimizerService.OptimizeConfig(
-                skipHomePage: ChkSkipHomePage.IsChecked == true,
-                skipSplashAndTips: ChkSkipSplashTips.IsChecked == true,
-                disableCloudSync: ChkDisableCloudSync.IsChecked == true,
-                disableAutoCalculate: ChkDisableAutoCalc.IsChecked == true,
-                enableMemOpt: ChkMemOpt.IsChecked == true,
-                log: Log
-            );
-
-            if (ChkHighGpu.IsChecked == true)
-            {
-                _optimizerService.ConfigureHighPerformanceGpu(Log);
-            }
-
-            Log("[COMPLETE] All optimizations applied successfully!");
-            Log("==================================================");
         });
 
         TxtLogStatus.Text = "• Completed";
