@@ -1,8 +1,9 @@
 # Creality Print 7.3 - Speed & Stability Optimizer (SparkX Suite)
 
 A high-performance optimization utility and crash fixer for **Creality Print 7.3** (`v7.3.1.6378`).
-
 Eliminates startup lag, fixes the KLSIM kinematic solver divergence bug that caused 100% CPU thread lockups and multi-gigabyte memory leaks, purges orphaned WebView2 profiles, and optimizes system resource allocation.
+
+<img width="456" height="387" alt="image" src="https://github.com/user-attachments/assets/87593594-6f76-44bb-8f43-bc6ec99226bf" />
 
 ---
 
