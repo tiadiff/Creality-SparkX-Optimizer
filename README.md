@@ -83,6 +83,13 @@ SparkXOptimizer.exe --silent
 
 ## Changelog
 
+### Version 1.0.2
+* Added Send Print Dialog Zoom & Auto-Fit fix (Issue #649): scales the local Vue/Vite dialog to 80% to ensure Start Print and Send Only buttons are never cut off by high-DPI scaling.
+* Added interactive keyboard zoom controls (Ctrl +, Ctrl -, Ctrl 0) directly inside the Send Print dialog.
+* Added standalone utility `Fix_SendPrint_Dialog.bat` with auto-elevation (UAC) and custom zoom percentages.
+* Added option `[6]` in `Avvia_SparkX_Optimizer.bat` for fast Send Print dialog patching.
+* Ensured user and system presets (`sync_user_preset`) are always preserved to prevent custom filaments or profiles from being hidden.
+
 ### Version 1.0.1
 * Added Cloud Presets Sync dialog and manual sync guidance.
 * Added Windows Kernel Permanent High Priority integration via Image File Execution Options (IFEO).

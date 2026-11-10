@@ -130,7 +130,8 @@ public partial class MainWindow : Window
         bool fixKinematics = ChkFixKinematics.IsChecked == true;
         bool skipHomePage = ChkSkipHomePage.IsChecked == true;
         bool skipSplashTips = ChkSkipSplashTips.IsChecked == true;
-        bool disableCloudSync = ChkDisableCloudSync.IsChecked == true;
+        bool preservePresets = ChkPreservePresets.IsChecked == true;
+        bool fixSendDialog = ChkFixSendDialog.IsChecked == true;
         bool disableAutoCalc = ChkDisableAutoCalc.IsChecked == true;
         bool memOpt = ChkMemOpt.IsChecked == true;
         bool highGpu = ChkHighGpu.IsChecked == true;
@@ -155,10 +156,15 @@ public partial class MainWindow : Window
                     _optimizerService.FixKinematicsAndCrashes(Log);
                 }
 
+                if (fixSendDialog)
+                {
+                    _optimizerService.PatchSendPrintDialogZoom(0.80, Log);
+                }
+
                 _optimizerService.OptimizeConfig(
                     skipHomePage: skipHomePage,
                     skipSplashAndTips: skipSplashTips,
-                    disableCloudSync: disableCloudSync,
+                    disableCloudSync: !preservePresets,
                     disableAutoCalculate: disableAutoCalc,
                     enableMemOpt: memOpt,
                     log: Log

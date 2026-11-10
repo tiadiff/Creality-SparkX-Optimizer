@@ -39,10 +39,11 @@ public partial class App : Application
             service.CreateBackup(msg => Console.WriteLine(msg));
             service.CleanJunk(msg => Console.WriteLine(msg));
             service.FixKinematicsAndCrashes(msg => Console.WriteLine(msg));
+            service.PatchSendPrintDialogZoom(0.80, msg => Console.WriteLine(msg));
             service.OptimizeConfig(
                 skipHomePage: true,
                 skipSplashAndTips: true,
-                disableCloudSync: true,
+                disableCloudSync: false,
                 disableAutoCalculate: true,
                 enableMemOpt: true,
                 log: msg => Console.WriteLine(msg)

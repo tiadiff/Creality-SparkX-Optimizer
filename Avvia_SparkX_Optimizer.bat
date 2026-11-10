@@ -23,7 +23,7 @@ if "%~1"=="-s" goto RUN_SILENT
 cls
 echo ===================================================================
 echo        CREALITY PRINT 7.3 - SPEED ^& STABILITY OPTIMIZER
-echo                        SparkX Suite v1.0.1
+echo                        SparkX Suite v1.0.2
 echo ===================================================================
 echo.
 echo   [1] Applica Ottimizzazione Completa (1-Click Diretto)
@@ -41,10 +41,12 @@ echo   [4] Crea Collegamento Desktop ad Alta Priorita
 echo.
 echo   [5] Avvia Creality Print (Priorita Alta Boosted)
 echo.
+echo   [6] Risolvi Finestra 'Invia Stampa' Tagliata (Fix Issue #649 - Zoom 80%% Auto-Fit)
+echo.
 echo   [0] Esci
 echo.
 echo ===================================================================
-set /p "CHOICE=Seleziona un'opzione [1-5, Default: 1]: "
+set /p "CHOICE=Seleziona un'opzione [1-6, Default: 1]: "
 
 if "%CHOICE%"=="" set "CHOICE=1"
 if "%CHOICE%"=="1" goto OPTIMIZE_DIRECT
@@ -52,6 +54,7 @@ if "%CHOICE%"=="2" goto OPEN_GUI
 if "%CHOICE%"=="3" goto SET_PRIORITY
 if "%CHOICE%"=="4" goto SHORTCUT
 if "%CHOICE%"=="5" goto LAUNCH_APP
+if "%CHOICE%"=="6" goto FIX_SEND_DIALOG
 if "%CHOICE%"=="0" exit /b 0
 
 echo Opzione non valida.
@@ -100,6 +103,10 @@ cls
 echo Avvio di Creality Print in corso...
 start "" /high "C:\Program Files\Creality\Creality Print 7.3\CrealityPrint.exe"
 exit /b 0
+
+:FIX_SEND_DIALOG
+call "%~dp0Fix_SendPrint_Dialog.bat"
+goto MENU
 
 :RUN_SILENT
 "!EXE_PATH!" %*

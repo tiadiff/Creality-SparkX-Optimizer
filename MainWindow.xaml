@@ -175,7 +175,7 @@
                         <TextBlock Text="SPEED &amp; STABILITY OPTIMIZER" FontSize="11" FontWeight="Bold" Foreground="#0E1B15"/>
                     </Border>
                     <Border Background="#25252D" CornerRadius="4" Margin="8,0,0,0" Padding="6,2" VerticalAlignment="Center">
-                        <TextBlock Text="v1.0.1" FontSize="11" Foreground="#A0A0AB"/>
+                        <TextBlock Text="v1.0.2" FontSize="11" Foreground="#A0A0AB"/>
                     </Border>
                 </StackPanel>
                 <TextBlock Text="Eliminates startup lag, fixes KLSIM kinematics crash, purges WebView2 junk &amp; forces Permanent High Priority."
@@ -281,7 +281,8 @@
 
                     <StackPanel Grid.Column="1" Margin="10,0,0,0">
                         <CheckBox x:Name="ChkPurgeJunk" IsChecked="True" Content="Purge orphaned WebView2 profile folders &amp; temp slice models"/>
-                        <CheckBox x:Name="ChkDisableCloudSync" IsChecked="True" Content="Disable slow Creality Cloud auto-sync check on boot (Use 'Sync Cloud' button when needed)"/>
+                        <CheckBox x:Name="ChkPreservePresets" IsChecked="True" Content="Preserve custom user presets (Keep custom filaments &amp; profiles active)"/>
+                        <CheckBox x:Name="ChkFixSendDialog" IsChecked="True" Content="Fix 'Send Print' Dialog Cut-off (Issue #649: 80% Auto-Fit Zoom &amp; Ctrl+/-)"/>
                         <CheckBox x:Name="ChkSkipSplashTips" IsChecked="True" Content="Disable Splash Screen &amp; Daily Tips popups"/>
                         <CheckBox x:Name="ChkHighGpu" IsChecked="True" Content="Force Dedicated High-Performance GPU (NVIDIA / AMD)"/>
                     </StackPanel>

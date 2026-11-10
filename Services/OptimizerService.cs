@@ -549,12 +549,10 @@ oLink.Save
                     log("[OPTIMIZE] Startup: Splash screen and Daily Tips disabled.");
                 }
 
-                if (disableCloudSync)
-                {
-                    appNode["sync_user_preset"] = false;
-                    appNode["sync_system_preset"] = false;
-                    log("[OPTIMIZE] Network: Automatic cloud preset check at startup disabled.");
-                }
+                // Preserve user and system presets so custom filaments and process profiles are never lost or hidden
+                appNode["sync_user_preset"] = true;
+                appNode["sync_system_preset"] = true;
+                log("[PRESETS] User & System presets preserved (Custom filaments and process profiles remain intact).");
 
                 if (disableAutoCalculate)
                 {
@@ -775,5 +773,199 @@ oLink.Save
         }
         catch { }
         return freed;
+    }
+
+    public string GetSendPrintDialogHtmlPath()
+    {
+        string exePath = GetCrealityExePath();
+        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+        {
+            string fallback = @"C:\Program Files\Creality\Creality Print 7.3\resources\web\sendToPrinterPage\index.html";
+            return File.Exists(fallback) ? fallback : string.Empty;
+        }
+
+        string htmlPath = Path.Combine(Path.GetDirectoryName(exePath)!, "resources", "web", "sendToPrinterPage", "index.html");
+        return File.Exists(htmlPath) ? htmlPath : string.Empty;
+    }
+
+    public bool IsSendPrintDialogPatched()
+    {
+        string htmlPath = GetSendPrintDialogHtmlPath();
+        if (string.IsNullOrEmpty(htmlPath) || !File.Exists(htmlPath)) return false;
+        try
+        {
+            string content = File.ReadAllText(htmlPath, Encoding.UTF8);
+            return content.Contains("sparkx-send-dialog-style");
+        }
+        catch { return false; }
+    }
+
+    public bool PatchSendPrintDialogZoom(double zoomRatio = 0.80, Action<string>? log = null)
+    {
+        string htmlPath = GetSendPrintDialogHtmlPath();
+        if (string.IsNullOrEmpty(htmlPath) || !File.Exists(htmlPath))
+        {
+            log?.Invoke("[WARNING] sendToPrinterPage/index.html not found.");
+            return false;
+        }
+
+        int zoomPercent = (int)(zoomRatio * 100);
+        string patchCode = $@"        <!-- SparkX Fix: Send Print Dialog Auto-Fit (Issue #649) -->
+        <style id=""sparkx-send-dialog-style"">
+            html, body {{
+                overflow-y: auto !important;
+            }}
+            body {{
+                zoom: {zoomPercent}% !important;
+            }}
+        </style>
+        <script id=""sparkx-send-dialog-script"">
+            (function() {{
+                var currentZoom = {zoomRatio.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)};
+                function applyZoom(z) {{
+                    currentZoom = z;
+                    document.body.style.zoom = (currentZoom * 100) + '%';
+                }}
+                window.addEventListener('keydown', function(e) {{
+                    if (e.ctrlKey) {{
+                        if (e.key === '+' || e.key === '=') {{
+                            e.preventDefault();
+                            applyZoom(Math.min(1.2, currentZoom + 0.05));
+                        }} else if (e.key === '-' || e.key === '_') {{
+                            e.preventDefault();
+                            applyZoom(Math.max(0.5, currentZoom - 0.05));
+                        }} else if (e.key === '0') {{
+                            e.preventDefault();
+                            applyZoom({zoomRatio.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)});
+                        }}
+                    }}
+                }});
+            }})();
+        </script>";
+
+        string backupPath = htmlPath + ".bak";
+
+        try
+        {
+            string original = File.ReadAllText(htmlPath, Encoding.UTF8);
+            if (!File.Exists(backupPath))
+            {
+                File.WriteAllText(backupPath, original, Encoding.UTF8);
+            }
+
+            if (original.Contains("sparkx-send-dialog-style"))
+            {
+                log?.Invoke($"[INFO] Send Print dialog is already patched with zoom.");
+                return true;
+            }
+
+            string headTag = "</head>";
+            int headIdx = original.IndexOf(headTag, StringComparison.OrdinalIgnoreCase);
+            if (headIdx >= 0)
+            {
+                string modified = original.Insert(headIdx, patchCode + Environment.NewLine);
+                File.WriteAllText(htmlPath, modified, Encoding.UTF8);
+                log?.Invoke($"[SUCCESS] Send Print dialog patched with {zoomPercent}% zoom and interactive Ctrl+/- resizing.");
+                return true;
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            log?.Invoke("[INFO] Requesting Administrator privilege to patch Program Files send dialog...");
+            try
+            {
+                string psScript = $@"
+$htmlPath = '{htmlPath.Replace("'", "''")}';
+$bakPath = '{backupPath.Replace("'", "''")}';
+if (!(Test-Path $bakPath)) {{ Copy-Item $htmlPath $bakPath -Force }};
+$content = [System.IO.File]::ReadAllText($htmlPath, [System.Text.Encoding]::UTF8);
+if (!$content.Contains('sparkx-send-dialog-style')) {{
+    $patch = @'
+{patchCode}
+'@;
+    $idx = $content.IndexOf('</head>');
+    if ($idx -ge 0) {{
+        $content = $content.Insert($idx, $patch + [Environment]::NewLine);
+        [System.IO.File]::WriteAllText($htmlPath, $content, [System.Text.Encoding]::UTF8);
+    }}
+}}
+";
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{psScript.Replace("\"", "\\\"")}\"",
+                    Verb = "runas",
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                var proc = Process.Start(psi);
+                proc?.WaitForExit(10000);
+
+                if (IsSendPrintDialogPatched())
+                {
+                    log?.Invoke($"[SUCCESS] Send Print dialog successfully patched with {zoomPercent}% auto-fit zoom.");
+                    return true;
+                }
+            }
+            catch (Exception exElevated)
+            {
+                log?.Invoke($"[ERROR] Elevated patch failed: {exElevated.Message}");
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            log?.Invoke($"[ERROR] Failed to patch Send Print dialog: {ex.Message}");
+            return false;
+        }
+
+        return false;
+    }
+
+    public bool RestoreSendPrintDialog(Action<string>? log = null)
+    {
+        string htmlPath = GetSendPrintDialogHtmlPath();
+        if (string.IsNullOrEmpty(htmlPath)) return false;
+        string backupPath = htmlPath + ".bak";
+        if (!File.Exists(backupPath))
+        {
+            log?.Invoke("[WARNING] No backup file (index.html.bak) found to restore.");
+            return false;
+        }
+
+        try
+        {
+            File.Copy(backupPath, htmlPath, overwrite: true);
+            log?.Invoke("[SUCCESS] Send Print dialog restored to original from index.html.bak.");
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Copy-Item '{backupPath}' '{htmlPath}' -Force\"",
+                    Verb = "runas",
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                var proc = Process.Start(psi);
+                proc?.WaitForExit(10000);
+                log?.Invoke("[SUCCESS] Send Print dialog restored to original.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"[ERROR] Restore failed: {ex.Message}");
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            log?.Invoke($"[ERROR] Restore failed: {ex.Message}");
+            return false;
+        }
     }
 }
