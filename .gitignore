@@ -1,5 +1,9 @@
 ## Visual Studio / .NET
-[Bb]in/
+[Bb]in/*
+![Bb]in/Release/
+[Bb]in/Release/*
+![Bb]in/Release/*.zip
+
 [Oo]bj/
 *.user
 *.suo
@@ -10,6 +14,3 @@
 project.lock.json
 *.nuget.props
 *.nuget.targets
-
-# Track release zip packages
-!bin/Release/*.zip
