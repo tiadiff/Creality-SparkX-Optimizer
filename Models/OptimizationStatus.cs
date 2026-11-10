@@ -27,6 +27,7 @@ public class OptimizationStatus
     public long TotalJunkBytes => WebViewJunkBytes + ModelTempJunkBytes + LogJunkBytes;
     
     public bool HighPerformanceGpuActive { get; set; }
+    public bool PermanentHighPriorityActive { get; set; }
     public string? LatestBackupPath { get; set; }
     public DateTime? LatestBackupTime { get; set; }
 }

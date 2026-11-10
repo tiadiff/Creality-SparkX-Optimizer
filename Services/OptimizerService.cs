@@ -23,7 +23,6 @@ public class OptimizerService
             if (File.Exists(path)) return path;
         }
 
-        // Try checking active processes
         var running = Process.GetProcessesByName("CrealityPrint");
         if (running.Length > 0)
         {
@@ -160,6 +159,9 @@ public class OptimizerService
         }
         catch { }
 
+        // Permanent High Priority check (IFEO)
+        status.PermanentHighPriorityActive = CheckPermanentHighPriority();
+
         // Latest backup check
         string backupDir = Path.Combine(status.AppDataDir, "SparkX_Backups");
         if (Directory.Exists(backupDir))
@@ -173,6 +175,110 @@ public class OptimizerService
         }
 
         return status;
+    }
+
+    public bool CheckPermanentHighPriority()
+    {
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CrealityPrint.exe\PerfOptions");
+            if (key != null)
+            {
+                var val = key.GetValue("CpuPriorityClass");
+                if (val is int intVal && intVal == 3) // 3 = High Priority
+                    return true;
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    public bool SetPermanentHighPriority(bool enable, Action<string> log)
+    {
+        try
+        {
+            string command = enable
+                ? @"add ""HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CrealityPrint.exe\PerfOptions"" /v CpuPriorityClass /t REG_DWORD /d 3 /f"
+                : @"delete ""HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CrealityPrint.exe\PerfOptions"" /f";
+
+            log($"[PRIORITY] Requesting Administrator privilege to configure Windows Kernel Process Priority...");
+            var psi = new ProcessStartInfo
+            {
+                FileName = "reg.exe",
+                Arguments = command,
+                Verb = "runas",
+                UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Hidden
+            };
+
+            var proc = Process.Start(psi);
+            proc?.WaitForExit(5000);
+
+            bool success = CheckPermanentHighPriority() == enable;
+            if (success)
+            {
+                log(enable
+                    ? "[SUCCESS] Permanent High Priority applied via Windows IFEO (CrealityPrint will always launch with High Priority)."
+                    : "[SUCCESS] Permanent High Priority removed.");
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            log($"[WARNING] Could not set permanent IFEO priority: {ex.Message}");
+        }
+
+        return false;
+    }
+
+    public bool CreateHighPriorityDesktopShortcut(Action<string> log)
+    {
+        try
+        {
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            string shortcutPath = Path.Combine(desktop, "Creality Print (High Priority).lnk");
+            string exePath = GetCrealityExePath();
+
+            if (!File.Exists(exePath))
+            {
+                log("[ERROR] CrealityPrint.exe not found to create shortcut.");
+                return false;
+            }
+
+            // Create a .bat launcher or powershell shortcut
+            string launcherBat = Path.Combine(GetAppDataPath(), "Launch_High_Priority.bat");
+            string batContent = $"@echo off\r\nstart \"\" /high \"{exePath}\" %*\r\n";
+            File.WriteAllText(launcherBat, batContent);
+
+            // Create WScript shortcut to launcher with Creality Print icon
+            string vbsScript = $@"
+Set oWS = WScript.CreateObject(""WScript.Shell"")
+sLinkFile = ""{shortcutPath}""
+Set oLink = oWS.CreateShortcut(sLinkFile)
+oLink.TargetPath = ""{launcherBat}""
+oLink.Arguments = """"
+oLink.Description = ""Creality Print 7.3 - High Priority Launcher""
+oLink.IconLocation = ""{exePath}, 0""
+oLink.WindowStyle = 7
+oLink.WorkingDirectory = ""{Path.GetDirectoryName(exePath)}""
+oLink.Save
+";
+            string tempVbs = Path.Combine(Path.GetTempPath(), "create_shortcut.vbs");
+            File.WriteAllText(tempVbs, vbsScript);
+
+            var psi = new ProcessStartInfo("wscript.exe", $"\"{tempVbs}\"") { UseShellExecute = true };
+            var p = Process.Start(psi);
+            p?.WaitForExit(3000);
+            File.Delete(tempVbs);
+
+            log($"[SHORTCUT] Created 'Creality Print (High Priority)' shortcut on your Desktop.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            log($"[WARNING] Failed to create desktop shortcut: {ex.Message}");
+            return false;
+        }
     }
 
     public void CloseOrKillCrealityPrint(Action<string> log)
@@ -195,18 +301,6 @@ public class OptimizerService
                 }
             }
         }
-
-        // Also clean orphaned webview processes that belong to Creality Print
-        var webviews = Process.GetProcessesByName("msedgewebview2");
-        foreach (var wv in webviews)
-        {
-            try
-            {
-                // Check if its command line points to slicer_webview_userdata
-                // Only kill if it's safe or if we are cleaning temp
-            }
-            catch { }
-        }
     }
 
     public string CreateBackup(Action<string> log)
@@ -217,7 +311,6 @@ public class OptimizerService
         string destFolder = Path.Combine(backupRoot, $"Backup_{timestamp}");
         Directory.CreateDirectory(destFolder);
 
-        // Backup Creality.conf
         string conf = GetConfigPath();
         if (File.Exists(conf))
         {
@@ -225,7 +318,6 @@ public class OptimizerService
             log($"[BACKUP] Saved Creality.conf to {destFolder}");
         }
 
-        // Backup machine profiles
         string machinesDir = Path.Combine(appData, "system", "Creality", "machine");
         if (Directory.Exists(machinesDir))
         {
@@ -305,8 +397,7 @@ public class OptimizerService
             }
             catch (Exception ex)
             {
-                log($"[CLEAN] Partial purge of WebView2 cache (some files locked): {ex.Message}");
-                // Attempt file by file
+                log($"[CLEAN] Partial purge of WebView2 cache: {ex.Message}");
                 freedBytes += SafeDeleteDirectoryContents(webviewDir);
             }
         }
@@ -363,6 +454,50 @@ public class OptimizerService
         return freedBytes;
     }
 
+    public bool ToggleCloudSync(bool enable, Action<string> log)
+    {
+        string confPath = GetConfigPath();
+        if (!File.Exists(confPath))
+        {
+            log("[WARNING] Creality.conf not found.");
+            return false;
+        }
+
+        try
+        {
+            string jsonText = File.ReadAllText(confPath, Encoding.UTF8);
+            string md5Line = string.Empty;
+            int md5Idx = jsonText.LastIndexOf("# MD5 checksum", StringComparison.OrdinalIgnoreCase);
+            if (md5Idx > 0)
+            {
+                md5Line = jsonText.Substring(md5Idx);
+                jsonText = jsonText.Substring(0, md5Idx).TrimEnd();
+            }
+
+            var jsonNode = JsonNode.Parse(jsonText);
+            var appNode = jsonNode?["app"]?.AsObject();
+            if (appNode != null)
+            {
+                appNode["sync_user_preset"] = enable;
+                appNode["sync_system_preset"] = enable;
+            }
+
+            string updatedJson = jsonNode!.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            if (!string.IsNullOrEmpty(md5Line)) updatedJson += "\n" + md5Line + "\n";
+            File.WriteAllText(confPath, updatedJson, Encoding.UTF8);
+
+            log(enable
+                ? "[CLOUD] Cloud preset sync enabled for next launch."
+                : "[CLOUD] Cloud preset sync disabled at startup (Manual sync in-app is still available).");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            log($"[ERROR] Failed to update cloud sync setting: {ex.Message}");
+            return false;
+        }
+    }
+
     public bool OptimizeConfig(
         bool skipHomePage,
         bool skipSplashAndTips,
@@ -382,7 +517,6 @@ public class OptimizerService
         {
             string jsonText = File.ReadAllText(confPath, Encoding.UTF8);
 
-            // Separate MD5 checksum comment line if present
             string md5Line = string.Empty;
             int md5Idx = jsonText.LastIndexOf("# MD5 checksum", StringComparison.OrdinalIgnoreCase);
             if (md5Idx > 0)
@@ -440,7 +574,6 @@ public class OptimizerService
             var printNode = jsonNode["print"]?.AsObject();
             if (printNode != null)
             {
-                // Disable automatic timelapse spiral injection by default
                 if (printNode.ContainsKey("timelapse"))
                 {
                     printNode["timelapse"] = "0";
@@ -486,23 +619,19 @@ public class OptimizerService
                 string content = File.ReadAllText(file, Encoding.UTF8);
                 string newContent = content;
 
-                // 1. Fix xy_step_dist causing KLSIM itersolve divergence
                 if (newContent.Contains("\"xy_step_dist\": \"0.0121875\""))
                 {
                     newContent = newContent.Replace("\"xy_step_dist\": \"0.0121875\"", "\"xy_step_dist\": \"0\"");
                 }
 
-                // 2. Fix toolchange helical arc G2 Z... P1
                 newContent = newContent.Replace(
                     "G2 Z{z_after_toolchange + 0.4} I0.86 J0.86 P1 F10000",
                     "G1 Z{z_after_toolchange + 0.4} F10000");
 
-                // 3. Fix machine end helical arc
                 newContent = newContent.Replace(
                     "G2 Z{position[2]+3} I0.86 J0.86 P1 F10000 ; spiral lift a little from second lift",
                     "G1 Z{position[2]+3} F10000 ; lift a little from second lift");
 
-                // 4. Fix timelapse helical arc
                 newContent = newContent.Replace(
                     "M5001 G2 Z{layer_z + 0.4} I0.86 J0.86 P1 F20000 ; spiral lift a little",
                     "M5001 G1 Z{layer_z + 0.4} F20000 ; lift a little");
@@ -580,8 +709,8 @@ public class OptimizerService
                         Thread.Sleep(500);
                         if (!proc.HasExited)
                         {
-                            proc.PriorityClass = ProcessPriorityClass.AboveNormal;
-                            log("[LAUNCH] Boosted process CPU priority to AboveNormal.");
+                            proc.PriorityClass = ProcessPriorityClass.High;
+                            log("[LAUNCH] Set process CPU priority to High.");
                         }
                     }
                     catch { }

@@ -23,3 +23,4 @@ if %errorlevel% neq 0 (
 
 start "" "bin\Release\net8.0-windows\SparkXOptimizer.exe" %*
 exit /b 0
+

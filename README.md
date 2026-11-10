@@ -82,6 +82,12 @@ SparkXOptimizer.exe --silent
 
 ## Changelog
 
+### Version 1.0.1
+* Added Cloud Presets Sync dialog and manual sync guidance.
+* Added Windows Kernel Permanent High Priority integration via Image File Execution Options (IFEO).
+* Added automated High Priority Desktop shortcut creator (Creality Print High Priority.lnk).
+* Added real-time priority status detection in dashboard.
+
 ### Version 1.0.0
 * Initial release of Creality-SparkX Optimizer.
 * Added 1-Click full system optimization and automated backup mechanism.
@@ -90,3 +96,4 @@ SparkXOptimizer.exe --silent
 * Added Creality.conf tuning for instant startup and background slice protection.
 * Added High-Performance GPU registration.
 * Added silent CLI mode for automated workflows.
+

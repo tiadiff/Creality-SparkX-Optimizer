@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Media;
 using SparkXOptimizer.Models;
 using SparkXOptimizer.Services;
@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         RefreshStatus();
-        Log("[READY] Creality-SparkX Optimizer initialized. Ready to tune Creality Print 7.3.");
+        Log("[READY] Creality-SparkX Optimizer v1.0.1 initialized. Ready to tune Creality Print 7.3.");
     }
 
     private void RefreshStatus()
@@ -72,17 +72,33 @@ public partial class MainWindow : Window
             TxtStabilityDetail.Text = "Kinematics solver bug eliminated";
         }
 
+        // Priority Status
+        if (_currentStatus.PermanentHighPriorityActive)
+        {
+            TxtPriorityStatus.Text = "PERMANENT (HIGH)";
+            TxtPriorityStatus.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
+            TxtPriorityBadge.Text = "[ACTIVE IN KERNEL]";
+            TxtPriorityBadge.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
+            BtnSetPermanentPriority.Content = "Disable Permanent High Priority";
+        }
+        else
+        {
+            TxtPriorityStatus.Text = "RESET BY WINDOWS";
+            TxtPriorityStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
+            TxtPriorityBadge.Text = "[TASK MANAGER RESETS ON RESTART]";
+            TxtPriorityBadge.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
+            BtnSetPermanentPriority.Content = "⚡ Permanent High Priority (Registry IFEO)";
+        }
+
         // Junk Size
-        TxtJunkSize.Text = OptimizerService.FormatBytes(_currentStatus.TotalJunkBytes);
+        TxtJunkSize.Text = $"{OptimizerService.FormatBytes(_currentStatus.TotalJunkBytes)} junk";
         if (_currentStatus.TotalJunkBytes > 1024 * 1024 * 100) // > 100 MB
         {
             TxtJunkSize.Foreground = new SolidColorBrush(Color.FromRgb(255, 184, 0));
-            TxtJunkDetail.Text = $"{OptimizerService.FormatBytes(_currentStatus.WebViewJunkBytes)} WebView2 + {OptimizerService.FormatBytes(_currentStatus.ModelTempJunkBytes)} model temp";
         }
         else
         {
             TxtJunkSize.Foreground = new SolidColorBrush(Color.FromRgb(0, 210, 132));
-            TxtJunkDetail.Text = "Temp cache clean";
         }
 
         // Backup Info
@@ -107,25 +123,19 @@ public partial class MainWindow : Window
             Log("==================================================");
             Log("[START] Starting 1-Click Full Optimization...");
 
-            // 1. Terminate running instance if any
             _optimizerService.CloseOrKillCrealityPrint(Log);
-
-            // 2. Create backup first
             _optimizerService.CreateBackup(Log);
 
-            // 3. Clean junk
             if (ChkPurgeJunk.IsChecked == true)
             {
                 _optimizerService.CleanJunk(Log);
             }
 
-            // 4. Fix Kinematic crash bug
             if (ChkFixKinematics.IsChecked == true)
             {
                 _optimizerService.FixKinematicsAndCrashes(Log);
             }
 
-            // 5. Optimize Creality.conf
             _optimizerService.OptimizeConfig(
                 skipHomePage: ChkSkipHomePage.IsChecked == true,
                 skipSplashAndTips: ChkSkipSplashTips.IsChecked == true,
@@ -135,7 +145,6 @@ public partial class MainWindow : Window
                 log: Log
             );
 
-            // 6. Set High Performance GPU
             if (ChkHighGpu.IsChecked == true)
             {
                 _optimizerService.ConfigureHighPerformanceGpu(Log);
@@ -156,8 +165,74 @@ public partial class MainWindow : Window
             "• Kinematic solver divergence and 100% CPU freezes fixed\n" +
             "• Temporary cache and dead WebView2 profiles cleaned\n" +
             "• High-Performance GPU verified\n\n" +
-            "You can now launch Creality Print with optimal performance.",
+            "Tip: Click 'Permanent High Priority' to stop Windows from resetting priority on restart.",
             "Optimization Complete",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information
+        );
+    }
+
+    private async void BtnCloudSync_Click(object sender, RoutedEventArgs e)
+    {
+        var result = MessageBox.Show(
+            "Do you want to enable Creality Cloud preset synchronization for the next launch?\n\n" +
+            "• Click YES to enable Cloud Sync and launch Creality Print immediately.\n" +
+            "• Click NO to learn how to sync manually inside Creality Print without enabling it on boot.",
+            "Creality Cloud Preset Sync",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question
+        );
+
+        if (result == MessageBoxResult.Yes)
+        {
+            BtnCloudSync.IsEnabled = false;
+            await Task.Run(() =>
+            {
+                Log("[CLOUD] Enabling Creality Cloud synchronization for this session...");
+                _optimizerService.CloseOrKillCrealityPrint(Log);
+                _optimizerService.ToggleCloudSync(true, Log);
+                _optimizerService.LaunchCrealityPrint(boostPriority: true, Log);
+            });
+            BtnCloudSync.IsEnabled = true;
+            RefreshStatus();
+        }
+        else if (result == MessageBoxResult.No)
+        {
+            Log("[CLOUD GUIDE] Manual In-App Sync: In Creality Print, on the left panel next to 'Filamento' or 'Processo', click the circular arrows icon to sync anytime without slowing down boot.");
+            MessageBox.Show(
+                "How to sync manually inside Creality Print anytime:\n\n" +
+                "1. Open Creality Print.\n" +
+                "2. In the left sidebar ('Prepara' tab), look at the Presets section.\n" +
+                "3. Next to the preset dropdown, click the circular arrows icon (Sync).\n\n" +
+                "This downloads and uploads all your cloud presets instantly on-demand, without causing boot delays every time you start the software!",
+                "Manual Cloud Sync Guide",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information
+            );
+        }
+    }
+
+    private async void BtnSetPermanentPriority_Click(object sender, RoutedEventArgs e)
+    {
+        bool targetState = !_currentStatus.PermanentHighPriorityActive;
+        BtnSetPermanentPriority.IsEnabled = false;
+
+        await Task.Run(() =>
+        {
+            _optimizerService.SetPermanentHighPriority(targetState, Log);
+        });
+
+        BtnSetPermanentPriority.IsEnabled = true;
+        RefreshStatus();
+    }
+
+    private void BtnCreateShortcut_Click(object sender, RoutedEventArgs e)
+    {
+        _optimizerService.CreateHighPriorityDesktopShortcut(Log);
+        MessageBox.Show(
+            "A new shortcut 'Creality Print (High Priority)' has been created on your Desktop!\n\n" +
+            "Launching Creality Print from this shortcut will always run it in High CPU Priority automatically.",
+            "Shortcut Created",
             MessageBoxButton.OK,
             MessageBoxImage.Information
         );
@@ -221,7 +296,7 @@ public partial class MainWindow : Window
 
     private void BtnLaunch_Click(object sender, RoutedEventArgs e)
     {
-        Log("[LAUNCH] Launching Creality Print in optimized mode...");
+        Log("[LAUNCH] Launching Creality Print in High Priority mode...");
         _optimizerService.LaunchCrealityPrint(boostPriority: true, Log);
         RefreshStatus();
     }
